@@ -58,7 +58,7 @@ def obter_video_recente():
             video_id = video['id']['videoId']
             titulo_video = video['snippet']['title']
             url_video = f'https://www.youtube.com/watch?v={video_id}'
-            return Response(f'{titulo_video}: {url_video}', mimetype='text/plain')
+            return Response(f'{titulo_video}: {url_video} ', mimetype='text/plain')
         else:
             return Response("Nenhum vídeo encontrado", mimetype='text/plain'), 404
     else:
