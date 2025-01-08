@@ -72,19 +72,16 @@ def obter_playlist():
         todas_playlists = obter_todas_playlists()
         playlists_correspondentes = []
 
-        # Busca por correspondências parciais
         for playlist in todas_playlists:
             titulo_playlist = playlist['snippet']['title'].lower()
-            if nome_playlist in titulo_playlist:  # Verifica se o nome buscado está no título
+            if nome_playlist in titulo_playlist:  
                 playlist_id = playlist['id']
                 url_playlist = f'https://www.youtube.com/playlist?list={playlist_id}'
-                playlists_correspondentes.append(f'{playlist["snippet"]["title"]}: {url_playlist}')
+                playlists_correspondentes.append(f'{playlist["snippet"]["title"]}: {url_playlist} ')
 
         if playlists_correspondentes:
-            # Retorna apenas as playlists que correspondem ao nome
             return Response("\n".join(playlists_correspondentes), mimetype='text/plain')
         else:
-            # Sugestões baseadas em similaridade
             sugestoes = difflib.get_close_matches(
                 nome_playlist, [playlist['snippet']['title'].lower() for playlist in todas_playlists]
             )
