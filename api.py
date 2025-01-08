@@ -5,7 +5,6 @@ import difflib
 
 app = Flask(__name__)
 
-# Recupera as variáveis de ambiente
 API_KEY = os.getenv('MY_SECRET_TOKEN')
 CHANNEL_ID = os.getenv('CHANNEL_ID')
 MAX_RESULTS_PER_PAGE = 5
@@ -22,7 +21,7 @@ def get_all_playlists():
             url += f'&pageToken={next_page_token}'
         try:
             response = requests.get(url)
-            response.raise_for_status()  # Levanta exceções para códigos de status HTTP 4xx/5xx
+            response.raise_for_status()
         except requests.exceptions.RequestException as e:
             return Response(f"Error fetching data: {str(e)}", mimetype='text/plain'), 500
         if response.status_code != 200:
@@ -40,7 +39,13 @@ def get_all_playlists():
 
 @app.route('/')
 def index():
-    return Response(f'Para testar a API, acesse a URL adicionando "/playlists" ou "/latest_video".', mimetype='text/plain'), 200
+    return Response(
+        'Para testar a API, acesse as URLs:\n'
+        '- /playlists\n'
+        '- /latest_video\n'
+        '- /video?title=<titulo_do_video>',
+        mimetype='text/plain'
+    ), 200
 
 @app.route('/latest_video', methods=['GET'])
 def get_latest_video():
@@ -54,7 +59,7 @@ def get_latest_video():
             video_id = video_item['id']['videoId']
             video_title = video_item['snippet']['title']
             video_url = f'https://www.youtube.com/watch?v={video_id}'
-            return Response(f'{video_title}: {video_url} ', mimetype='text/plain')
+            return Response(f'{video_title}: {video_url}', mimetype='text/plain')
         else:
             return Response("No video found", mimetype='text/plain'), 404
     else:
@@ -76,8 +81,13 @@ def get_playlists():
         if matched_playlists:
             return Response("\n".join(matched_playlists), mimetype='text/plain')
         else:
-            suggestions = difflib.get_close_matches(playlist_name, [playlist['snippet']['title'].lower() for playlist in all_playlists])
-            return Response(f'Playlist not found. Suggestions: {", ".join(suggestions)}', mimetype='text/plain'), 404
+            suggestions = difflib.get_close_matches(
+                playlist_name, [playlist['snippet']['title'].lower() for playlist in all_playlists]
+            )
+            return Response(
+                f'Playlist not found. Suggestions: {", ".join(suggestions)}',
+                mimetype='text/plain'
+            ), 404
     else:
         all_playlists = get_all_playlists()
         playlists = []
@@ -87,6 +97,34 @@ def get_playlists():
             playlist_url = f'https://www.youtube.com/playlist?list={playlist_id}'
             playlists.append(f'{playlist_title}: {playlist_url}')
         return Response("\n".join(playlists), mimetype='text/plain')
+
+@app.route('/video', methods=['GET'])
+def get_specific_video():
+    video_query = request.args.get('title')
+    if not video_query:
+        return Response(
+            'Please provide a video title using the "title" query parameter.',
+            mimetype='text/plain'
+        ), 400
+
+    url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&channelId={CHANNEL_ID}&q={video_query}&type=video&maxResults=1&key={API_KEY}'
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        return Response(f'Error fetching video: {response.text}', mimetype='text/plain'), 500
+
+    data = response.json()
+    if 'items' in data and len(data['items']) > 0:
+        video_item = data['items'][0]
+        video_id = video_item['id']['videoId']
+        video_title = video_item['snippet']['title']
+        video_url = f'https://www.youtube.com/watch?v={video_id}'
+        return Response(f'{video_title}: {video_url}', mimetype='text/plain')
+    else:
+        return Response(
+            f'No video found matching the title "{video_query}".',
+            mimetype='text/plain'
+        ), 404
 
 if __name__ == '__main__':
     app.run(debug=True)
