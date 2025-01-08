@@ -1,0 +1,36 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run Flask in background
+      env:
+        MY_SECRET_TOKEN: ${{ secrets.MY_SECRET_TOKEN }}
+        CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+      run: |
+        nohup python api.py &  # Executa o Flask em segundo plano
+        sleep 5  # Espera alguns segundos para garantir que o Flask iniciou
+    
+    - name: Run tests
+      run: |
+        curl http://localhost:5000/latest_video  # Exemplo de requisição para testar o endpoint /latest_video
+        curl http://localhost:5000/playlists     # Exemplo de requisição para testar o endpoint /playlists
+
+    - name: Kill Flask process
+      run: |
+        pkill -f "python api.py"  # Encerra o processo Flask
