@@ -71,31 +71,38 @@ def obter_playlist():
         nome_playlist = nome_playlist.lower()
         todas_playlists = obter_todas_playlists()
         playlists_correspondentes = []
+
+        # Busca por correspondências parciais
         for playlist in todas_playlists:
             titulo_playlist = playlist['snippet']['title'].lower()
-            if nome_playlist in titulo_playlist:
+            if nome_playlist in titulo_playlist:  # Verifica se o nome buscado está no título
                 playlist_id = playlist['id']
                 url_playlist = f'https://www.youtube.com/playlist?list={playlist_id}'
-                playlists_correspondentes.append(f'{titulo_playlist}: {url_playlist}')
+                playlists_correspondentes.append(f'{playlist["snippet"]["title"]}: {url_playlist}')
+
         if playlists_correspondentes:
+            # Retorna apenas as playlists que correspondem ao nome
             return Response("\n".join(playlists_correspondentes), mimetype='text/plain')
         else:
+            # Sugestões baseadas em similaridade
             sugestoes = difflib.get_close_matches(
                 nome_playlist, [playlist['snippet']['title'].lower() for playlist in todas_playlists]
             )
-            return Response(
-                f'Playlist não encontrada. Sugestões: {", ".join(sugestoes)}',
-                mimetype='text/plain'
-            ), 404
+            if sugestoes:
+                return Response(
+                    f'Nenhuma playlist exata encontrada. Sugestões: {", ".join(sugestoes)}',
+                    mimetype='text/plain'
+                ), 404
+            else:
+                return Response(
+                    f'Nenhuma playlist encontrada para "{nome_playlist}" e nenhuma sugestão disponível.',
+                    mimetype='text/plain'
+                ), 404
     else:
-        todas_playlists = obter_todas_playlists()
-        lista_playlists = []
-        for playlist in todas_playlists:
-            playlist_id = playlist['id']
-            titulo_playlist = playlist['snippet']['title']
-            url_playlist = f'https://www.youtube.com/playlist?list={playlist_id}'
-            lista_playlists.append(f'{titulo_playlist}: {url_playlist} ')
-        return Response("\n".join(lista_playlists), mimetype='text/plain')
+        return Response(
+            'Por favor, forneça o nome da playlist usando o parâmetro "nome".',
+            mimetype='text/plain'
+        ), 400
 
 @app.route('/video', methods=['GET'])
 def obter_video_especifico():
