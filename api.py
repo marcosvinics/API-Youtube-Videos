@@ -10,29 +10,28 @@ CHANNEL_ID = os.getenv('CHANNEL_ID')
 MAX_RESULTS_PER_PAGE = 5
 
 if not API_KEY or not CHANNEL_ID:
-    raise ValueError("API_KEY and CHANNEL_ID must be set as environment variables")
+    raise ValueError("API_KEY e CHANNEL_ID precisam ser definidos como variáveis de ambiente")
 
-def get_all_playlists():
+def obter_todas_playlists():
     playlists = []
-    next_page_token = None
+    proxima_pagina = None
     while True:
         url = f'https://www.googleapis.com/youtube/v3/playlists?part=snippet&channelId={CHANNEL_ID}&maxResults={MAX_RESULTS_PER_PAGE}&key={API_KEY}'
-        if next_page_token:
-            url += f'&pageToken={next_page_token}'
+        if proxima_pagina:
+            url += f'&pageToken={proxima_pagina}'
         try:
-            response = requests.get(url)
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            return Response(f"Error fetching data: {str(e)}", mimetype='text/plain'), 500
-        if response.status_code != 200:
+            resposta = requests.get(url)
+            resposta.raise_for_status()
+        except requests.exceptions.RequestException as erro:
+            return Response(f"Erro ao buscar dados: {str(erro)}", mimetype='text/plain'), 500
+        if resposta.status_code != 200:
             return []
-        
-        data = response.json()
-        if 'items' in data:
-            for item in data['items']:
-                playlists.append(item)
-        if 'nextPageToken' in data:
-            next_page_token = data['nextPageToken']
+
+        dados = resposta.json()
+        if 'items' in dados:
+            playlists.extend(dados['items'])
+        if 'nextPageToken' in dados:
+            proxima_pagina = dados['nextPageToken']
         else:
             break
     return playlists
@@ -41,88 +40,88 @@ def get_all_playlists():
 def index():
     return Response(
         'Para testar a API, acesse as URLs:\n'
-        '- /playlists\n'
-        '- /latest_video\n'
-        '- /video?title=<titulo_do_video>',
+        '- /playlist\n'
+        '- /video_recente\n'
+        '- /video?titulo=<titulo_do_video>',
         mimetype='text/plain'
     ), 200
 
-@app.route('/latest_video', methods=['GET'])
-def get_latest_video():
+@app.route('/video_recente', methods=['GET'])
+def obter_video_recente():
     url = f'https://www.googleapis.com/youtube/v3/search?order=date&part=snippet&channelId={CHANNEL_ID}&maxResults=1&key={API_KEY}'
-    response = requests.get(url)
-    data = response.json()
+    resposta = requests.get(url)
+    dados = resposta.json()
 
-    if 'items' in data and len(data['items']) > 0:
-        video_item = data['items'][0]
-        if 'videoId' in video_item['id']:
-            video_id = video_item['id']['videoId']
-            video_title = video_item['snippet']['title']
-            video_url = f'https://www.youtube.com/watch?v={video_id}'
-            return Response(f'{video_title}: {video_url}', mimetype='text/plain')
+    if 'items' in dados and len(dados['items']) > 0:
+        video = dados['items'][0]
+        if 'videoId' in video['id']:
+            video_id = video['id']['videoId']
+            titulo_video = video['snippet']['title']
+            url_video = f'https://www.youtube.com/watch?v={video_id}'
+            return Response(f'{titulo_video}: {url_video}', mimetype='text/plain')
         else:
-            return Response("No video found", mimetype='text/plain'), 404
+            return Response("Nenhum vídeo encontrado", mimetype='text/plain'), 404
     else:
-        return Response('No videos found', mimetype='text/plain'), 404
+        return Response('Nenhum vídeo encontrado', mimetype='text/plain'), 404
 
-@app.route('/playlists', methods=['GET'])
-def get_playlists():
-    playlist_name = request.args.get('name')
-    if playlist_name:
-        playlist_name = playlist_name.lower()
-        all_playlists = get_all_playlists()
-        matched_playlists = []
-        for playlist in all_playlists:
-            item_name = playlist['snippet']['title'].lower()
-            if playlist_name in item_name:
+@app.route('/playlist', methods=['GET'])
+def obter_playlist():
+    nome_playlist = request.args.get('nome')
+    if nome_playlist:
+        nome_playlist = nome_playlist.lower()
+        todas_playlists = obter_todas_playlists()
+        playlists_correspondentes = []
+        for playlist in todas_playlists:
+            titulo_playlist = playlist['snippet']['title'].lower()
+            if nome_playlist in titulo_playlist:
                 playlist_id = playlist['id']
-                playlist_url = f'https://www.youtube.com/playlist?list={playlist_id}'
-                matched_playlists.append(f'{item_name}: {playlist_url}')
-        if matched_playlists:
-            return Response("\n".join(matched_playlists), mimetype='text/plain')
+                url_playlist = f'https://www.youtube.com/playlist?list={playlist_id}'
+                playlists_correspondentes.append(f'{titulo_playlist}: {url_playlist}')
+        if playlists_correspondentes:
+            return Response("\n".join(playlists_correspondentes), mimetype='text/plain')
         else:
-            suggestions = difflib.get_close_matches(
-                playlist_name, [playlist['snippet']['title'].lower() for playlist in all_playlists]
+            sugestoes = difflib.get_close_matches(
+                nome_playlist, [playlist['snippet']['title'].lower() for playlist in todas_playlists]
             )
             return Response(
-                f'Playlist not found. Suggestions: {", ".join(suggestions)}',
+                f'Playlist não encontrada. Sugestões: {", ".join(sugestoes)}',
                 mimetype='text/plain'
             ), 404
     else:
-        all_playlists = get_all_playlists()
-        playlists = []
-        for playlist in all_playlists:
+        todas_playlists = obter_todas_playlists()
+        lista_playlists = []
+        for playlist in todas_playlists:
             playlist_id = playlist['id']
-            playlist_title = playlist['snippet']['title']
-            playlist_url = f'https://www.youtube.com/playlist?list={playlist_id}'
-            playlists.append(f'{playlist_title}: {playlist_url}')
-        return Response("\n".join(playlists), mimetype='text/plain')
+            titulo_playlist = playlist['snippet']['title']
+            url_playlist = f'https://www.youtube.com/playlist?list={playlist_id}'
+            lista_playlists.append(f'{titulo_playlist}: {url_playlist}')
+        return Response("\n".join(lista_playlists), mimetype='text/plain')
 
 @app.route('/video', methods=['GET'])
-def get_specific_video():
-    video_query = request.args.get('title')
-    if not video_query:
+def obter_video_especifico():
+    titulo_video = request.args.get('titulo')
+    if not titulo_video:
         return Response(
-            'Please provide a video title using the "title" query parameter.',
+            'Por favor, forneça o título do vídeo usando o parâmetro "titulo".',
             mimetype='text/plain'
         ), 400
 
-    url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&channelId={CHANNEL_ID}&q={video_query}&type=video&maxResults=1&key={API_KEY}'
-    response = requests.get(url)
+    url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&channelId={CHANNEL_ID}&q={titulo_video}&type=video&maxResults=1&key={API_KEY}'
+    resposta = requests.get(url)
 
-    if response.status_code != 200:
-        return Response(f'Error fetching video: {response.text}', mimetype='text/plain'), 500
+    if resposta.status_code != 200:
+        return Response(f'Erro ao buscar vídeo: {resposta.text}', mimetype='text/plain'), 500
 
-    data = response.json()
-    if 'items' in data and len(data['items']) > 0:
-        video_item = data['items'][0]
-        video_id = video_item['id']['videoId']
-        video_title = video_item['snippet']['title']
-        video_url = f'https://www.youtube.com/watch?v={video_id}'
-        return Response(f'{video_title}: {video_url}', mimetype='text/plain')
+    dados = resposta.json()
+    if 'items' in dados and len(dados['items']) > 0:
+        video = dados['items'][0]
+        video_id = video['id']['videoId']
+        titulo_video = video['snippet']['title']
+        url_video = f'https://www.youtube.com/watch?v={video_id}'
+        return Response(f'{titulo_video}: {url_video}', mimetype='text/plain')
     else:
         return Response(
-            f'No video found matching the title "{video_query}".',
+            f'Nenhum vídeo encontrado com o título "{titulo_video}".',
             mimetype='text/plain'
         ), 404
 
