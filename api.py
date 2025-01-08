@@ -94,7 +94,7 @@ def obter_playlist():
             playlist_id = playlist['id']
             titulo_playlist = playlist['snippet']['title']
             url_playlist = f'https://www.youtube.com/playlist?list={playlist_id}'
-            lista_playlists.append(f'{titulo_playlist}: {url_playlist}')
+            lista_playlists.append(f'{titulo_playlist}: {url_playlist} ')
         return Response("\n".join(lista_playlists), mimetype='text/plain')
 
 @app.route('/video', methods=['GET'])
